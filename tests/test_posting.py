@@ -11,7 +11,10 @@ def test_create_message_posts_one_authenticated_root_message() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
         assert request.method == "POST"
-        assert request.url.path.endswith("MessageService/CreateMessage")
+        assert (
+            request.url.path
+            == "/api/connect/chatto.api.v1.MessageService/CreateMessage"
+        )
         assert request.headers["Authorization"] == "Bearer secret-key"
         assert request.read().decode() == '{"roomId":"room-1","body":"hello"}'
         return httpx.Response(200, json={"message": {"id": "event-1"}})
@@ -37,6 +40,20 @@ def test_denied_message_is_not_success_and_does_not_leak_key() -> None:
     assert "secret-key" not in str(error.value)
 
 
+def test_html_success_does_not_confirm_message_delivery() -> None:
+    client = ChattoClient(
+        "https://chatto.example",
+        httpx.Client(
+            transport=httpx.MockTransport(
+                lambda _: httpx.Response(200, text="<html>app</html>")
+            )
+        ),
+    )
+
+    with pytest.raises(ChattoError, match="confirmation"):
+        client.create_message("room-1", "hello", "secret-key")
+
+
 def test_config_rejects_missing_required_values() -> None:
     with pytest.raises(ConfigError, match="ANNOUNCEMENTS_API_KEY"):
         Config.from_env(
@@ -50,7 +67,9 @@ def test_config_rejects_missing_required_values() -> None:
 def test_room_history_reconciles_a_bot_announcement() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
-        assert request.url.path.endswith("RoomService/GetRoomEvents")
+        assert (
+            request.url.path == "/api/connect/chatto.api.v1.RoomService/GetRoomEvents"
+        )
         return httpx.Response(
             200,
             json={

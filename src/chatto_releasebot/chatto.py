@@ -6,7 +6,8 @@ from typing import Any
 import httpx
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
-SERVER_DISCOVERY_PATH = "/chatto.api.v1.ServerDiscoveryService/GetServer"
+CONNECT_PATH = "/api/connect"
+SERVER_DISCOVERY_PATH = "/chatto.discovery.v1.ServerDiscoveryService/GetServer"
 
 
 class ChattoError(RuntimeError):
@@ -24,7 +25,9 @@ class ChattoClient:
 
     def discover_version(self) -> str:
         try:
-            response = self.client.get(self.base_url + SERVER_DISCOVERY_PATH)
+            response = self.client.post(
+                self.base_url + CONNECT_PATH + SERVER_DISCOVERY_PATH, json={}
+            )
         except httpx.HTTPError as exc:
             raise ChattoError("server version discovery request failed") from exc
 
@@ -52,7 +55,9 @@ class ChattoClient:
     def create_message(self, room_id: str, body: str, api_key: str) -> None:
         try:
             response = self.client.post(
-                self.base_url + "/chatto.api.v1.MessageService/CreateMessage",
+                self.base_url
+                + CONNECT_PATH
+                + "/chatto.api.v1.MessageService/CreateMessage",
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={"roomId": room_id, "body": body},
             )
@@ -64,6 +69,22 @@ class ChattoClient:
         if not response.is_success:
             raise ChattoError(f"message delivery returned HTTP {response.status_code}")
 
+        try:
+            confirmation: Any = response.json()
+        except ValueError as exc:
+            raise DeliveryUncertain(
+                "message delivery confirmation was invalid"
+            ) from exc
+        message = (
+            confirmation.get("message") if isinstance(confirmation, dict) else None
+        )
+        if (
+            not isinstance(message, dict)
+            or not isinstance(message.get("id"), str)
+            or not message["id"]
+        ):
+            raise DeliveryUncertain("message delivery confirmation was missing")
+
     def room_has_announcement(
         self, room_id: str, api_key: str, user_id: str, release_url: str
     ) -> bool:
@@ -74,7 +95,9 @@ class ChattoClient:
                 payload["before"] = before
             try:
                 response = self.client.post(
-                    self.base_url + "/chatto.api.v1.RoomService/GetRoomEvents",
+                    self.base_url
+                    + CONNECT_PATH
+                    + "/chatto.api.v1.RoomService/GetRoomEvents",
                     headers={"Authorization": f"Bearer {api_key}"},
                     json=payload,
                 )

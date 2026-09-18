@@ -6,7 +6,13 @@ from chatto_releasebot.chatto import ChattoClient, ChattoError
 
 def test_discovery_returns_live_prerelease_version() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET"
+        assert request.method == "POST"
+        assert (
+            request.url.path
+            == "/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer"
+        )
+        assert request.headers["content-type"] == "application/json"
+        assert request.read() == b"{}"
         return httpx.Response(200, json={"profile": {"version": "0.5.0-beta.1"}})
 
     client = ChattoClient(
