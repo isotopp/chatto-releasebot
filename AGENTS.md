@@ -12,8 +12,10 @@
 ## Local setup
 
 Use Python 3.14 and uv. Install the locked dependencies with `uv sync`. For
-local integration checks, provision an ignored `.env` with fake or explicitly
-approved development values; never commit it. `chatto-releasebot --dry-run`
+local integration checks, provision an ignored `.env` in the current directory
+or `~/.chatto-releasebot.env` with fake or explicitly approved development
+values; never commit it. The loader selects the current directory file first
+and reads only one file. `chatto-releasebot --dry-run`
 discovers the configured server version and renders a message without posting
 or changing state.
 

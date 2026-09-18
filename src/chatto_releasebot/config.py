@@ -29,9 +29,20 @@ class Config:
         state_path: Path | None = None,
     ) -> Config:
         if values is None:
+            local_file = Path.cwd() / ".env"
+            home_file = Path.home() / ".chatto-releasebot.env"
+            if local_file.is_file():
+                selected_file = local_file
+            elif home_file.is_file():
+                selected_file = home_file
+            else:
+                raise ConfigError(
+                    "configuration file not found: expected .env in the current "
+                    "directory or ~/.chatto-releasebot.env"
+                )
             file_values = {
                 key: value
-                for key, value in dotenv_values().items()
+                for key, value in dotenv_values(selected_file).items()
                 if value is not None
             }
             environment = dict(file_values)

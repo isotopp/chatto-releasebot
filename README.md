@@ -44,8 +44,11 @@ pauses delivery without changing the Chatto service.
 
 ## Configuration
 
-The job reads these values from the environment. A local `.env` is convenient
-for development but is not deployed by Git:
+The job reads `.env` from its current directory. If that file is absent, it
+reads `~/.chatto-releasebot.env` for the user running the job. If both are
+absent, it exits with an error. It reads exactly one file; values from the
+other file are not used to fill missing entries. Process environment values
+can override values in the selected file. Neither file is deployed by Git:
 
 ```dotenv
 ANNOUNCEMENTS_SERVER_BASE_URL=https://chatto.koehntopp.de
@@ -89,8 +92,9 @@ paths on the host, a roughly daily cron entry can be:
 
 Adjust `/srv/chatto/releasebot` and the installed command path to the Ansible
 checkout and the verified `command -v` result. The scheduler must run as
-`chatto`, from the directory containing the provisioned `.env`, and with a
-writable state directory.
+`chatto`, from the checkout containing the provisioned `.env` or with
+`~/.chatto-releasebot.env` in the `chatto` user's home, and with a writable
+state directory.
 
 ## Verify safely
 
