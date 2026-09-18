@@ -20,8 +20,8 @@ class Release:
 class GitHubReleaseClient:
     def __init__(
         self,
+        repository_url: str,
         client: httpx.Client | None = None,
-        repository_url: str = "https://api.github.com/repos/chattocorp/chatto",
     ) -> None:
         self.client = client or httpx.Client(timeout=15.0)
         self.repository_url = repository_url.rstrip("/")

@@ -51,6 +51,7 @@ class FakeGitHub:
 def config_for(path: Path) -> Config:
     return Config(
         server_base_url="https://chatto.example",
+        github_base_url="https://api.github.com/repos/chattocorp/chatto",
         api_key="bot-key",
         room_id="room-1",
         user_id="bot-1",

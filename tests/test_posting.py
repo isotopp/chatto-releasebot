@@ -59,6 +59,18 @@ def test_config_rejects_missing_required_values() -> None:
         Config.from_env(
             {
                 "ANNOUNCEMENTS_SERVER_BASE_URL": "https://chatto.example",
+                "ANNOUNCEMENTS_GITHUB_BASE_URL": "https://api.github.com/repos/chattocorp/chatto",
+                "ANNOUNCEMENTS_ROOM_ID": "room-1",
+            }
+        )
+
+
+def test_config_rejects_missing_github_base_url() -> None:
+    with pytest.raises(ConfigError, match="ANNOUNCEMENTS_GITHUB_BASE_URL"):
+        Config.from_env(
+            {
+                "ANNOUNCEMENTS_SERVER_BASE_URL": "https://chatto.example",
+                "ANNOUNCEMENTS_API_KEY": "test-key",
                 "ANNOUNCEMENTS_ROOM_ID": "room-1",
             }
         )

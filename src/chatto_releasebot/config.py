@@ -16,6 +16,7 @@ class ConfigError(RuntimeError):
 @dataclass(frozen=True)
 class Config:
     server_base_url: str
+    github_base_url: str
     api_key: str
     room_id: str
     user_id: str | None
@@ -38,6 +39,7 @@ class Config:
 
         required = (
             "ANNOUNCEMENTS_SERVER_BASE_URL",
+            "ANNOUNCEMENTS_GITHUB_BASE_URL",
             "ANNOUNCEMENTS_API_KEY",
             "ANNOUNCEMENTS_ROOM_ID",
         )
@@ -56,6 +58,9 @@ class Config:
 
         return cls(
             server_base_url=server_url,
+            github_base_url=environment["ANNOUNCEMENTS_GITHUB_BASE_URL"]
+            .strip()
+            .rstrip("/"),
             api_key=environment["ANNOUNCEMENTS_API_KEY"].strip(),
             room_id=environment["ANNOUNCEMENTS_ROOM_ID"].strip(),
             user_id=environment.get("ANNOUNCEMENTS_USER_ID") or None,

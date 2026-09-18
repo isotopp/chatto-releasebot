@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import fcntl
 import json
-import os
-import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -54,34 +52,15 @@ class StateStore:
 
     def save(self, state: State) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary_path: str | None = None
+        new_path = self.path.with_suffix(".new")
         try:
-            file_descriptor, temporary_path = tempfile.mkstemp(
-                dir=self.path.parent,
-                prefix=f".{self.path.name}.",
-                suffix=".tmp",
+            new_path.write_text(
+                json.dumps(_state_to_json(state), sort_keys=True) + "\n",
+                encoding="utf-8",
             )
-            os.fchmod(file_descriptor, 0o600)
-            with os.fdopen(file_descriptor, "w", encoding="utf-8") as handle:
-                json.dump(_state_to_json(state), handle, sort_keys=True)
-                handle.write("\n")
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temporary_path, self.path)
-            temporary_path = None
-            directory_descriptor = os.open(self.path.parent, os.O_RDONLY)
-            try:
-                os.fsync(directory_descriptor)
-            finally:
-                os.close(directory_descriptor)
+            new_path.replace(self.path)
         except OSError as exc:
             raise StateError(f"could not write state file: {self.path}") from exc
-        finally:
-            if temporary_path is not None:
-                try:
-                    os.unlink(temporary_path)
-                except FileNotFoundError:
-                    pass
 
 
 def _state_to_json(state: State) -> dict[str, Any]:

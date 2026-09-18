@@ -52,6 +52,7 @@ can override values in the selected file. Neither file is deployed by Git:
 
 ```dotenv
 ANNOUNCEMENTS_SERVER_BASE_URL=https://chatto.koehntopp.de
+ANNOUNCEMENTS_GITHUB_BASE_URL=https://api.github.com/repos/chattocorp/chatto
 ANNOUNCEMENTS_API_KEY=replace-me
 ANNOUNCEMENTS_ROOM_ID=replace-me
 ANNOUNCEMENTS_USER_ID=replace-me
@@ -59,10 +60,11 @@ ANNOUNCEMENTS_USER_NAME=announce_bot
 ```
 
 `ANNOUNCEMENTS_SERVER_BASE_URL` is used for live version discovery, room reads,
-and message creation. `ANNOUNCEMENTS_USER_ID` identifies the bot when checking
-room history; the username is an operator-side identity check and is not sent
-as part of message creation. Never print the API key or copy any host secret
-into this repository.
+and message creation. `ANNOUNCEMENTS_GITHUB_BASE_URL` is the GitHub repository
+API URL used to look up releases. `ANNOUNCEMENTS_USER_ID` identifies the bot
+when checking room history; the username is an operator-side identity check and
+is not sent as part of message creation. Never print the API key or copy any
+host secret into this repository.
 
 The durable state file is
 `~/.local/state/chatto-releasebot/state.json`.

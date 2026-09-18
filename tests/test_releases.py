@@ -17,7 +17,10 @@ def test_resolves_exact_prerelease_tag() -> None:
             },
         )
 
-    client = GitHubReleaseClient(httpx.Client(transport=httpx.MockTransport(handler)))
+    client = GitHubReleaseClient(
+        "https://api.github.com/repos/chattocorp/chatto",
+        httpx.Client(transport=httpx.MockTransport(handler)),
+    )
 
     release = client.get_release("0.5.0-beta.1")
 
@@ -38,7 +41,8 @@ def test_resolves_exact_prerelease_tag() -> None:
 )
 def test_missing_or_wrong_release_is_pending(response: httpx.Response) -> None:
     client = GitHubReleaseClient(
-        httpx.Client(transport=httpx.MockTransport(lambda _: response))
+        "https://api.github.com/repos/chattocorp/chatto",
+        httpx.Client(transport=httpx.MockTransport(lambda _: response)),
     )
 
     with pytest.raises(ReleasePending):

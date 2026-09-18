@@ -21,7 +21,7 @@ def run_once(
     dry_run: bool = False,
 ) -> str:
     chatto = chatto or ChattoClient(config.server_base_url)
-    github = github or GitHubReleaseClient()
+    github = github or GitHubReleaseClient(config.github_base_url)
     state_store = state_store or StateStore(config.state_path)
 
     if dry_run:

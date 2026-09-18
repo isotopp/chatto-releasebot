@@ -9,6 +9,7 @@ from chatto_releasebot.config import Config, ConfigError
 def clear_announcement_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
         "ANNOUNCEMENTS_SERVER_BASE_URL",
+        "ANNOUNCEMENTS_GITHUB_BASE_URL",
         "ANNOUNCEMENTS_API_KEY",
         "ANNOUNCEMENTS_ROOM_ID",
     ):
@@ -18,6 +19,7 @@ def clear_announcement_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 def _configuration(room_id: str) -> str:
     return (
         "ANNOUNCEMENTS_SERVER_BASE_URL=https://chatto.example\n"
+        "ANNOUNCEMENTS_GITHUB_BASE_URL=https://api.github.com/repos/chattocorp/chatto\n"
         "ANNOUNCEMENTS_API_KEY=test-key\n"
         f"ANNOUNCEMENTS_ROOM_ID={room_id}\n"
     )

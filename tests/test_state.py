@@ -22,6 +22,7 @@ def test_state_survives_a_new_store_and_keeps_pending_attempt(tmp_path: Path) ->
             )
         )
 
+    assert not path.with_suffix(".new").exists()
     assert StateStore(path).load() == State(
         announced_version="0.4.24",
         pending=PendingAttempt(
