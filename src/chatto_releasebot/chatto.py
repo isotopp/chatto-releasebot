@@ -13,6 +13,10 @@ class ChattoError(RuntimeError):
     pass
 
 
+class DeliveryUncertain(ChattoError):
+    pass
+
+
 class ChattoClient:
     def __init__(self, base_url: str, client: httpx.Client | None = None) -> None:
         self.base_url = base_url.rstrip("/")
@@ -44,3 +48,18 @@ class ChattoClient:
                 "server version discovery returned no valid profile.version"
             )
         return version
+
+    def create_message(self, room_id: str, body: str, api_key: str) -> None:
+        try:
+            response = self.client.post(
+                self.base_url + "/chatto.api.v1.MessageService/CreateMessage",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={"roomId": room_id, "body": body},
+            )
+        except httpx.HTTPError as exc:
+            raise DeliveryUncertain(
+                "message delivery response was not received"
+            ) from exc
+
+        if not response.is_success:
+            raise ChattoError(f"message delivery returned HTTP {response.status_code}")
