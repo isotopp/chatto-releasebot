@@ -45,3 +45,46 @@ def test_config_rejects_missing_required_values() -> None:
                 "ANNOUNCEMENTS_ROOM_ID": "room-1",
             }
         )
+
+
+def test_room_history_reconciles_a_bot_announcement() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path.endswith("RoomService/GetRoomEvents")
+        return httpx.Response(
+            200,
+            json={
+                "page": {
+                    "events": [
+                        {
+                            "actorId": "bot-1",
+                            "messagePosted": {
+                                "message": {
+                                    "actorId": "bot-1",
+                                    "body": "Chatto 0.5.0-beta.1\nhttps://release.example/v0.5.0-beta.1",
+                                }
+                            },
+                        }
+                    ],
+                    "hasOlder": False,
+                }
+            },
+        )
+
+    client = ChattoClient(
+        "https://chatto.example", httpx.Client(transport=httpx.MockTransport(handler))
+    )
+
+    assert client.room_has_announcement(
+        "room-1", "bot-key", "bot-1", "https://release.example/v0.5.0-beta.1"
+    )
+
+
+def test_room_history_failure_is_not_treated_as_empty() -> None:
+    client = ChattoClient(
+        "https://chatto.example",
+        httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(403))),
+    )
+
+    with pytest.raises(ChattoError, match="timeline"):
+        client.room_has_announcement("room-1", "bot-key", "bot-1", "release")
