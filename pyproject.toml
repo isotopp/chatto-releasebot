@@ -1,6 +1,6 @@
 [project]
 name = "chatto-releasebot"
-version = "0.1.0"
+version = "0.2.0"
 description = "Announce deployed Chatto releases in a Chatto room"
 readme = "README.md"
 authors = [
