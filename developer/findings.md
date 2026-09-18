@@ -4,14 +4,14 @@ Observed 2026-09-18. This is an exploration record; no bot or deployment changes
 
 ## Local project
 
-- Python scaffold in `src/chatto_releasebot/__init__.py`; `pyproject.toml` requires Python 3.14 and has no runtime dependencies.
-- `README.md` is empty. The scaffold is untracked in Git as of this inspection.
+- Python scaffold in `src/chatto_releasebot/__init__.py`; `pyproject.toml` requires Python 3.14. Runtime dependencies are `httpx` and `python-dotenv`; Ruff, ty, and pytest are development dependencies.
+- `README.md` documents local setup and commit gates. The scaffold is tracked in Git.
 
 ## Chatto deployment
 
 - Public server: <https://chatto.koehntopp.de/> (HTTP 200).
 - SSH: `ssh -i ~/.ssh/codex root@kvm` resolves to `kvm.koehntopp.de`.
-- Deployment directory on this host is `/srv/chatto`, not `/home/chatto`. Treat it as read-only: Ansible manages it.
+- Deployment directory on this host is `/srv/chatto`. Treat it as read-only: Ansible manages it.
 - Compose file: `/srv/chatto/compose/compose.yml`; environment file: `/srv/chatto/compose/.env`; application config: `/srv/chatto/config/chatto.toml`.
 - Rootless Podman runs as UID 9000 (`chatto`), with containers `compose_chatto_1`, `compose_nats_1`, and `compose_livekit_1`. For read-only inspection as root: `runuser -u chatto -- env XDG_RUNTIME_DIR=/run/user/9000 podman ps`.
 - Running Chatto image reports version `0.5.0-beta.1`; container started 2026-09-18 07:12 UTC. Compose pins the image by digest. NATS and LiveKit are separate services.
@@ -36,20 +36,27 @@ Observed 2026-09-18. This is an exploration record; no bot or deployment changes
 - An incoming webhook can post one JSON text message: `POST /webhooks/incoming/<credential>` with a room ID in the URL or JSON. It accepts `text`, `body`, or `message`; success is HTTP 200 with `ok`. A webhook can be bound to one channel room when created.
 - The bot must be a member of the target room and have effective `message.post`. Bot permissions are explicit, limited by the human owner's current permissions. Its owner must also be allowed to post there. Creating/joining it may require `room.join` or room management authority.
 - Incoming webhooks have no idempotency key. A lost response followed by a retry can duplicate a message. MCP `post_message` is also non-idempotent.
-- Bot API keys authorize normal ConnectRPC calls with `Authorization: Bearer cht_BK_...`; MCP can use a bot key when enabled. Neither is needed just to send one scheduled webhook message.
+- Bot API keys authorize normal ConnectRPC calls with `Authorization: Bearer cht_BK_...`; MCP can use a bot key when enabled. The supplied bot API key is intended for posting through the public API and, with sufficient permission, reading messages for duplicate reconciliation. Its validity and permissions have not yet been tested. An incoming webhook remains an alternative.
 - MCP exposes `post_message`, room listing, and message reading, but is currently disabled on this deployment. Enabling it would require an Ansible-managed config change and a restart.
+- The public `ServerDiscoveryService.GetServer` response includes `profile.version`. A read-only call to the live server returned `0.5.0-beta.1`, matching the running image label. This is the simplest source for the deployed version; see the [ConnectRPC overview](https://dev-docs.chatto.run/reference/connectrpc-api/).
+- `RoomService.GetRoomEvents` can read recent room timeline events but requires room membership and `message.read` (or an applicable interaction grant). It is a possible way to reconcile an uncertain message post.
 
 ## Refined requirement
 
-The releasebot should inspect the version actually running on the local Chatto server. It should announce when that deployed version changes, provided that the matching GitHub release is available. A new upstream release alone is not an announcement trigger. The running image's `org.opencontainers.image.version` label gives a verified local version source without enabling MCP.
+The releasebot should inspect the version actually running on the local Chatto server. It should announce when that deployed version differs from the last announced version in a state file, provided that the matching GitHub release is available. If the state file does not exist, announce the current version. A new upstream release alone is not an announcement trigger. The live server's public discovery `profile.version` is the authoritative runtime version source. The job will run as an unprivileged OS user.
 
-## Implementation inputs still needed
+## Local bot configuration supplied
 
-1. Identify the announcements channel by stable room ID, and provide a bot-owned incoming webhook bound to it (or a bot API key if readback and reconciliation are required). Do not commit the credential.
-2. Create a dedicated bot such as `release_bot`, join it to the announcements room, and grant only effective `message.post` there. Its human owner needs matching posting authority. A bot manager can create the webhook in Server Admin → Bots.
-3. Choose where the polling job runs and where it persists the last announced local version. Deployment changes must go through Ansible.
-4. Decide whether the first run announces the already deployed version and how to summarize upgrades that skip intermediate releases. A conservative default is to establish the current version as the baseline, then announce subsequent changes.
+- A repository-local `.env` is present and ignored by Git. `python-dotenv` confirmed non-empty values for `ANNOUNCEMENTS_ROOM_ID`, `ANNOUNCEMENTS_API_KEY`, `ANNOUNCEMENTS_USER_ID`, and `ANNOUNCEMENTS_USER_NAME`. The bot username is `announce_bot`. `ANNOUNCEMENTS_SERVER_BASE_URL=https://chatto.koehntopp.de` was added later; this URL is public and should be used for discovery, room reads, and posting. Do not print or commit the credential or IDs.
+- The room ID and bot API key are available for local development. The operator has set up `announce_bot`, confirmed it appears in the `#announcements` member list, and granted it `message.post`. API-key validity, effective posting permission, and `message.read` have not yet been tested.
+
+## Deployment plan and remaining checks
+
+1. Verify the supplied API key and the bot's effective `message.post` permission in `#announcements`. Confirm `message.read` if duplicate reconciliation requires it; the human owner must have corresponding authority.
+2. Ansible will deploy this Git repository for the existing `chatto` OS user. The installation plan uses `uv tool install .` and `uv tool update-shell`; the scheduled invocation must resolve the installed command. The job is expected to run about once a day, likely via cron.
+3. An upgrade that skips intermediate releases includes only the newly installed version's release-note items.
+4. Applying the deployment is out of scope for this repository. Installation instructions should document the Ansible handoff, the persistent state file, and secure provisioning of `.env` values that are ignored by Git.
 
 ## Minimal likely approach
 
-On a schedule, read the running Chatto image's version label and compare it with the last handled local version. If it changed, fetch the matching `v<version>` Chatto release, select user-visible changes, and send one message with its release URL to a room-bound incoming webhook. Persist the handled version to avoid routine repeats. Treat an uncertain webhook response as a separate reconciliation decision because the endpoint provides no idempotency key.
+On a schedule under the `chatto` OS user, read the live Chatto server's public version and compare it with the last announced version in a file. A missing file calls for an announcement. Fetch the matching `v<version>` Chatto release, select user-visible changes from that release, and post one message with its release URL using the supplied bot API key. Record the version only after confirming the post. An uncertain response needs reconciliation before retrying because message posting is not idempotent.
