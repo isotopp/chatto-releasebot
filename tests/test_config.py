@@ -56,7 +56,7 @@ def test_missing_files_fail_with_clear_error(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("HOME", str(home))
 
-    with pytest.raises(ConfigError, match=r"\.env.*\.chatto-releasebot\.env"):
+    with pytest.raises(ConfigError, match="environment variables not found"):
         Config.from_env()
 
 

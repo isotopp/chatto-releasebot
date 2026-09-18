@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 
 
 class ConfigError(RuntimeError):
@@ -26,42 +26,26 @@ class Config:
     def from_env(
         cls,
         values: Mapping[str, str] | None = None,
-        state_path: Path | None = None,
     ) -> Config:
         if values is None:
-            local_file = Path.cwd() / ".env"
-            home_file = Path.home() / ".chatto-releasebot.env"
-            if local_file.is_file():
-                selected_file = local_file
-            elif home_file.is_file():
-                selected_file = home_file
-            else:
-                raise ConfigError(
-                    "configuration file not found: expected .env in the current "
-                    "directory or ~/.chatto-releasebot.env"
-                )
-            file_values = {
-                key: value
-                for key, value in dotenv_values(selected_file).items()
-                if value is not None
-            }
-            environment = dict(file_values)
-            environment.update(os.environ)
+            if not load_dotenv("./.env") and not load_dotenv(
+                Path("~/.chatto-releasebot.env").expanduser()
+            ):
+                raise ConfigError("environment variables not found")
+            environment = os.environ
         else:
-            environment = dict(values)
+            environment = values
 
-        required = {
-            "ANNOUNCEMENTS_SERVER_BASE_URL": environment.get(
-                "ANNOUNCEMENTS_SERVER_BASE_URL", ""
-            ),
-            "ANNOUNCEMENTS_API_KEY": environment.get("ANNOUNCEMENTS_API_KEY", ""),
-            "ANNOUNCEMENTS_ROOM_ID": environment.get("ANNOUNCEMENTS_ROOM_ID", ""),
-        }
-        missing = [name for name, value in required.items() if not value.strip()]
+        required = (
+            "ANNOUNCEMENTS_SERVER_BASE_URL",
+            "ANNOUNCEMENTS_API_KEY",
+            "ANNOUNCEMENTS_ROOM_ID",
+        )
+        missing = [name for name in required if not environment.get(name, "").strip()]
         if missing:
             raise ConfigError(f"missing required configuration: {', '.join(missing)}")
 
-        server_url = required["ANNOUNCEMENTS_SERVER_BASE_URL"].strip().rstrip("/")
+        server_url = environment["ANNOUNCEMENTS_SERVER_BASE_URL"].strip().rstrip("/")
         parsed = urlsplit(server_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ConfigError("ANNOUNCEMENTS_SERVER_BASE_URL must be an HTTP(S) URL")
@@ -72,21 +56,9 @@ class Config:
 
         return cls(
             server_base_url=server_url,
-            api_key=required["ANNOUNCEMENTS_API_KEY"].strip(),
-            room_id=required["ANNOUNCEMENTS_ROOM_ID"].strip(),
+            api_key=environment["ANNOUNCEMENTS_API_KEY"].strip(),
+            room_id=environment["ANNOUNCEMENTS_ROOM_ID"].strip(),
             user_id=environment.get("ANNOUNCEMENTS_USER_ID") or None,
             user_name=environment.get("ANNOUNCEMENTS_USER_NAME") or None,
-            state_path=state_path or default_state_path(environment),
+            state_path=Path("~/.local/state/chatto-releasebot/state.json").expanduser(),
         )
-
-
-def default_state_path(values: Mapping[str, str] | None = None) -> Path:
-    environment = os.environ if values is None else values
-    explicit = environment.get("CHATTO_RELEASEBOT_STATE_PATH", "").strip()
-    if explicit:
-        return Path(explicit).expanduser()
-    state_home = environment.get("XDG_STATE_HOME", "").strip()
-    if state_home:
-        return Path(state_home).expanduser() / "chatto-releasebot" / "state.json"
-    home = Path(environment.get("HOME", str(Path.home()))).expanduser()
-    return home / ".local" / "state" / "chatto-releasebot" / "state.json"

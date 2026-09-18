@@ -65,8 +65,7 @@ as part of message creation. Never print the API key or copy any host secret
 into this repository.
 
 The durable state file is
-`$XDG_STATE_HOME/chatto-releasebot/state.json`, or
-`~/.local/state/chatto-releasebot/state.json` when `XDG_STATE_HOME` is unset.
+`~/.local/state/chatto-releasebot/state.json`.
 It belongs to the `chatto` OS user and must be writable by that user. The job
 uses an adjacent lock file so overlapping invocations cannot both post the
 same version.
